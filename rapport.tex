@@ -1,0 +1,94 @@
+\documentclass[12pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{listings}
+
+\geometry{a4paper, margin=1in}
+
+\title{Rapport de Projet de Programmation Fonctionnelle}
+\author{Paul Boulesteix (20198839) \and Khalil Rerhrhaye (20179868)}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Ce rapport décrit notre expérience dans l'implémentation d'un interpréteur pour un sous-ensemble de Lisp, en mettant l'accent sur les sections que nous avons complétées, la complexité de l'implémentation de \texttt{eval}, l'ajout des \texttt{hinsert} et des \texttt{s2l} ainsi que les défis et les choix que nous avons dû faire.
+\end{abstract}
+
+\section{Introduction}
+Dans le cadre de ce cours, nous avons été chargés de l'implémentation d'un interpréteur pour un langage de programmation fonctionnelle inspiré de Lisp (ici nommé Slip). Ce projet a inclus la complétion d'un squelette de code fourni, nécessitant une compréhension des concepts de programmation fonctionnelle en Haskell.
+
+\section{Problématiques Rencontrées}
+
+\subsection{Compréhension du Projet}
+Nous avons commencé par une lecture exhaustive du projet, qui, rétrospectivement, aurait gagné à être plus approfondie. Une comparaison plus systématique avec les travaux pratiques aurait pu être bénéfique pour identifier les similitudes et les stratégies de résolution des problèmes.
+
+\subsection{Pattern Matching en Haskell}
+Bien que le système de pattern matching de Haskell nous était initialement peu familier et semblait complexe, nous avons découvert sa puissance pour ce genre de tâches. La maîtrise de cette caractéristique du langage a été cruciale pour la suite du projet.
+
+\section{Défis et Solutions}
+
+\subsection{Implémentation de \texttt{s2l}}
+La conversion de la syntaxe S-expression vers les expressions lambda (\texttt{s2l}) a été notre premier défi majeur. Ce processus nous a permis de nous familiariser avec la base de code et de comprendre les intrications du langage cible.
+
+\subsection{Compréhension des \texttt{tas} et de leur utilité}
+La compréhension du tas et des adresses elle-même au début nous ont porté à beaucoup de confusion, notamment le fait que tout les tas de gauches ne pouvaient être accessibles et que donc il fallait prendre en compte cette particularité lors de l'implémentation de hinsert.
+
+\subsection{Compréhension de l'environnement}
+L'environnement fourni était, naturellement, légèrement différent du celui vu en demo. On a trouvé de la difficulté à analyser les \textit{\textbf{binii, biniiv et binop}}, puis à comprendre comment les utiliser (\textbf{exemple:} Comment un \textit{\textbf{binii Vnum (+)}} peut-il faire une addition? Comment lui faire passer ses arguments?)
+\begin{itemize}
+    \item \textit{\textbf{Solution trouvé: }} L'ajout d'une fonction auxiliaire \textbf{\textit{applyOp}} qui, grâce à l'environnement fourni `env0` , permet de match l'opération binaire voulu avec les arguments voulu.  (\textbf{\textit{exemple:}} Si on lui fourni le symbole `- ` et deux arguments, la fonction comprends qu'il faut faire une soustraction entre ces deux arguments)
+    Une documentation plus détaillée  se trouve dans le fichier `slip.hs` .
+\end{itemize}
+
+\subsection{Complexité des \texttt{letrec}}
+Le principal défi dans le "s2l" a plus spécifiquement été l'implémentation des déclarations récursives (\texttt{letrec}). Nous n'étions pas certains de son bon fonctionnement après implémentation, mais nous avons consacré du temps à comprendre la théorie des points fixes et la manière dont Haskell gère la récursivité.
+
+\subsection{Ajout de \texttt{hinsert}}
+La manipulation du tas via la fonction \texttt{hinsert} a ajouté une couche de complexité, notamment dans la gestion de la récursivité et, encore un fois, du pattern matching dans l'ordre, afin de correctement détecter chaque cas.
+
+\subsection{Ajout de \texttt{eval}}
+\begin{itemize}
+    \item L'implémentation générale des eval étaient d'une difficulté moyenne, elle résidait principalement dans le fait que on avait pas de quoi comparer notre code avec, ce qui parfois nous rendait confus vu qu'on ne savait pas pourquoi l'implementation ne marchait pas et qu'il n'y avait pas d'exemple pour nous guider sur la bonne voie.
+    \item L'implémentation des autres Sexp était assez intuitif et logique, à part pour \textbf{\textit{Lfuncall}} (qui remporte le titre de fonction eval la plus difficile à implémenter ) et \textbf{\textit{Labs}}, qui eux, d'après moi, nécessitaient une compréhension avancée de Haskell et du squelette fournie.
+    \item Pour la comparaison de Value entre eux, une instance de \textbf{\textit{Eq Value}} (ligne. 339) à été implémentée afin de pouvoir comparer les donnes de type Value entre eux. Ça a été particulièrement utile lors de l'évaluation des `if then else` afin de vérifier si la condition a été vérifiée ou non.
+\end{itemize}
+
+\section{Débogage}
+Le débogage a été un processus fastidieux mais instructif. Il a nécessité une grande attention aux détails et une compréhension précise du flux d'exécution du programme.
+\begin{itemize}
+    \item Pour plus d'informations sur les erreurs et ce qui se trouve dans des structures de données plus complexes, on a rajouté une instance de \textbf{\textit{Show Heap}} (ligne. 296) qui permet de print et donc de visualiser l'intérieur du tas (Tout ses nodes, qu'ils soient empty ou contiennent une valeur) afin de mieux analyser ce qui se passe quand on utilise \textbf{\textit{hinsert}} sur un tas par exemple.
+    \item On a essayé de mettre le plus de\textbf{\textit{ `error (messagederreur)` }}possible lors des patterns matching pour quasiment si ce n'est toutes les fonctions qu'on a implémentée, afin de mieux comprendre les erreurs lors de l'exécution, leur provenances et leurs causes.
+\end{itemize}
+\begin{itemize}
+    \item Vraiment regrettable qu'on ne puisse pas mettre des print un peu partout comme en Java pour vérifier si une fonction a été exécutée et montrer l'état des variables en temps réel.
+\end{itemize}
+
+
+\section{Choix Techniques et Conception}
+
+\subsection{Pattern Matching}
+L'importance de l'ordre dans le pattern matching s'est avérée déterminante, que ce soit pour \texttt{s2l}, pour \texttt{hinsert} ou bien \texttt{eval}.
+
+
+
+\section{Conclusion}
+Ce projet a été à la fois exigeant et instructif. Il a renforcé notre compréhension de la programmation fonctionnelle et nous a préparés à aborder des problèmes de complexité similaire dans le futur. Malgré sa difficulté incroyable et les maux de tête à durée indéfinies causées, on a bien apprécié faire ce projet puisque on y a vraiment énormément appris, bien plus qu'aucune démo en classe n'aurait pu faire.\mbox{}\\\mbox{}\\
+Je classe ce projet/tp facilement dans le Top 3 des tps les plus difficiles, les plus enrichissants et intéressants que j'aie eu a faire de toute ma vie.\mbox{}\\\mbox{}\\
+Avant ce projet, on ne pouvait pas faire d'évaluateur, maintenant on peut coder un évaluateur (qui potentiellement marche a moitié)
+\mbox{}\\
+\mbox{}\\
+Pour notre professeur pour ce projet productif, et pour les démonstrateurs pour leurs patience et grande aide:
+\mbox{}\\
+\mbox{}\\
+\textit{Merci}.
+\end{document}

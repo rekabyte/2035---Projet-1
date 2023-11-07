@@ -1,0 +1,27 @@
+;-*- mode: lisp-data; coding: utf-8 -*-
+
+((λ x x) 5)                             ; ↝ 5
+
+((λ x (+ x x)) 7)                       ; ↝ 14
+
+((λ x (λ y (+ x y))) 3 4)               ; ↝ 7
+
+(let x 2 (+ x x))                       ; ↝ 4
+
+(let x 2 (let y 3 (+ x y)))             ; ↝ 5
+
+(if (= 2 2) true false)                 ; ↝ True
+
+(let x 5 (if (= x 5) 42 55))            ; ↝ 42
+
+(let x 5 (if (= x 6) 
+    (let y 10 (+ x y)) 
+        (let z 20 (* x z))))            ; ↝ 100
+
+(ref! 5)                                ; ↝ ptr<0>
+
+(get! (ref! 2))                         ; ↝ 2
+
++                                       ; <function>
+
+(* 10 (+ (/ 2 (+ 2 5)) 6))              ; ↝ 60
