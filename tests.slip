@@ -1,12 +1,10 @@
 ;-*- mode: lisp-data; coding: utf-8 -*-
 
-((λ x x) 5)                             ; ↝ 5
+(* 10 (+ (/ 2 (+ 2 5)) 6))              ; ↝ 60
 
 ((λ x (+ x x)) 7)                       ; ↝ 14
 
-((λ x (λ y (+ x y))) 3 4)               ; ↝ 7
-
-(let x 2 (+ x x))                       ; ↝ 4
+((λ x (λ y (* x y))) 3 4)               ; ↝ 12
 
 (let x 2 (let y 3 (+ x y)))             ; ↝ 5
 
@@ -22,6 +20,14 @@
 
 (get! (ref! 2))                         ; ↝ 2
 
-+                                       ; <function>
+(let c1 (ref! 6) (let c2 c1 (let _ 
+    (set! c2 7) (+ (get! c1)
+         (get! c2)))))                  ; ↝ 14
 
-(* 10 (+ (/ 2 (+ 2 5)) 6))              ; ↝ 60
+(let x (ref! 5) (let y (ref! 10)
+ (let _ (set! x (get! y)) 
+    (get! x))))                         ; ↝ 10
+
+(let c1 (ref! 6) (let c2 c1 (let _ 
+    (set! c2 7) (- (get! c1)
+        (get! c2)))))                   ; ↝ 0

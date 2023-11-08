@@ -1,4 +1,4 @@
--- TP-2  --- Implantation d'une sorte de Lisp          -*- coding: utf-8 -*-
+--- TP-2  --- Implantation d'une sorte de Lisp          -*- coding: utf-8 -*-
 {-# OPTIONS_GHC -Wall #-}
 
 -- Ce fichier défini les fonctionalités suivantes:
@@ -329,6 +329,7 @@ data Value
   | Vfun ((LState, Value) -> (LState, Value))
 
 instance Show Value where
+  showsPrec :: Int -> Value -> ShowS
   showsPrec p (Vnum n) = showsPrec p n
   showsPrec p (Vbool b) = showsPrec p b
   showsPrec _p (Vref p) = (\s -> "ptr<" ++ show p ++ ">" ++ s)
@@ -399,6 +400,7 @@ state0 :: LState
 state0 = (Hempty, 0)
 
 eval :: LState -> Env -> Lexp -> (LState, Value)
+
 eval s _env (Llit n) = (s, Vnum n)
 -- ¡¡ COMPLETER !!
 --
@@ -406,28 +408,10 @@ eval s _env (Llit n) = (s, Vnum n)
 eval s _env (Lid x) = case lookup x _env of
   Just v -> (s, v)
   Nothing -> error ("Variable " ++ x ++ " non definie.")
---
--- Evalue les LDEC: (let x e1 e2)
-eval s _env (Ldec x e1 e2) = eval s env' e2
-  where
-    env' = madd _env x (snd (eval s _env e1))
 
---
--- Evalue les LABS (fonctions anonymes):
-eval s _env (Labs arg expr) =
-  (s, Vfun (\(s', v) -> eval s' (madd _env arg v) expr))
---
--- Evalue les LITE (fonctions conditionnelles: if e1 e2 e2)
-eval s _env (Lite e1 e2 e3) = (s, resultat)
-  where
-    resultat
-      | snd (eval s _env e1) == Vbool True = snd (eval s _env e2)
-      | snd (eval s _env e1) == Vbool False = snd (eval s _env e3)
-      | otherwise = error "Erreur dans l'eval des LITE, 3eme guard enclenchee"
---
--- Evalue les funcall de Labs:
-eval s _env (Lfuncall (Labs arg expr) [e]) =
-  eval s (madd _env arg (snd (eval s _env e))) expr
+--Evalue les LABS (fonctions anonymes a un argument)
+eval s _env (Labs var e) = (s, Vfun (\(s',v) -> eval s' (madd _env var v) e))
+
 --
 --
 -- Evalue les LMKREF (creation de cellule memoire) (ref! e):
@@ -436,7 +420,7 @@ eval s _env (Lmkref e) =
       (heap, nextAddr) = s'
       heap' = hinsert heap nextAddr v
    in ((heap', nextAddr + 1), Vref nextAddr)
---
+
 -- Évalue les LDEREF qui correspond à get! p(chercher la valeur de la cellule
 -- mémoire à l'adresse p)
 eval s _env (Lderef e) =
@@ -447,9 +431,8 @@ eval s _env (Lderef e) =
            in case maybeValue of
                 Just v -> (s', v)
                 Nothing -> error ("Aucune valeur dans le tas avec la reference suivantte: " ++ show p)
-        (_, Vnum _) -> error "erreur Vnum dans l'eval de Lderef"
-        (_, Vbool _) -> error "erreur Vbool dans l'eval de Lderef"
-        (_, Vfun _) -> error "erreur Vfun dans l'eval de Lderef"
+        (_, _) -> error "erreur de type passé dans l'eval de Lderef"
+
 --
 -- Evalue les LASSIGN => (!set e1 e2) => (modifie les ref-cells)
 eval s _env (Lassign e1 e2) =
@@ -463,8 +446,34 @@ eval s _env (Lassign e1 e2) =
                       heap' = hinsert heap p v
                    in ((heap', nextAddr), v)
         _ -> error "Patttern non reconnu dans l'eval de Lassign"
+
 --
--- Evalue les FUNCALL generales:
+-- Evalue les LITE (fonctions conditionnelles: if e1 e2 e2)
+eval s _env (Lite e1 e2 e3) = (s, resultat)
+  where
+    resultat
+      | snd (eval s _env e1) == Vbool True = snd (eval s _env e2)
+      | snd (eval s _env e1) == Vbool False = snd (eval s _env e3)
+      | otherwise = error "Erreur dans l'eval des LITE, 3eme guard enclenchee"
+--
+-- Evalue les LDEC: (let x e1 e2)
+eval s env (Ldec var expr1 expr2) = eval s' (madd env var v1) expr2
+  where
+    (s', v1) = eval s env expr1
+--
+-- 
+-- Evalue les funcall dans le cas specifique ou son 1er argument est un LABS
+eval s _env (Lfuncall (Labs arg expr) [e]) =
+  eval s (madd _env arg (snd (eval s _env e))) expr
+
+-- Evalue les funcall seulement si leur premier argument est un funcall aussi
+-- et que la liste d'args est vide:
+eval s _env (Lfuncall (Lfuncall e1 args) []) =
+  eval s _env (Lfuncall e1 args)
+
+
+-- Evalue funcall d'un point de vue generale (Si les autres cas specifiques de funcall ne se sont
+-- pas executées), par exemple si le premier arg est un LID...:
 eval s _env (Lfuncall e1 (e2 : reste)) = case eval s _env e1 of
   -- Le cas ou e1 est un Lid (operation binaire), donc +, -, *, ...
   (_, Vfun f) -> (s, applyOp f arg1 arg2)
@@ -472,9 +481,10 @@ eval s _env (Lfuncall e1 (e2 : reste)) = case eval s _env e1 of
       arg1 = snd (eval s _env e2)
       arg2 = snd (eval s _env (head reste))
   (_, _) -> error "pattern non defini dans l'eval de LFUNCALL"
---
-eval _ _env _ = error "pas encore definie dans EVAL"
 
+
+
+eval _ _env _ = error "pas encore definie dans EVAL"
 ---------------------------------------------------------------------------
 --                  FONCTIONS AUXILIAIRES                                --
 ---------------------------------------------------------------------------
@@ -490,7 +500,9 @@ applyOp f arg1 arg2 =
         Vfun g ->
           let (s1, result) = g (s1, arg2)
            in result
-        _ -> error "erreur dans la fonction apply (pattern non couvert)"
+        Vnum num -> Vnum num
+        Vbool bool -> Vbool bool
+        Vref ref -> Vref ref
 
 ---------------------------------------------------------------------------
 -- Toplevel                                                              --
